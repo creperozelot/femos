@@ -131,8 +131,19 @@ cp "$KERNEL_ELF" "$ISO_DIR/boot/kernel.elf"
 
 echo "[5] Schreibe grub.cfg"
 cat > "$ISO_DIR/boot/grub/grub.cfg" <<EOF
+set gfxmode=1024x768
+set gfxpayload=keep
 set timeout=3
 set default=0
+
+
+insmod gfxterm
+insmod png
+insmod gfxmenu
+
+terminal_output gfxterm
+
+background_image /boot/grub/background.png
 
 menuentry "FEMOS (auto-build)" {
     multiboot /boot/kernel.elf
