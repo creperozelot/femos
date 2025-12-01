@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #include "drivers/vga.h"
-#include "arch/x86/cpu/gdt.h"   // gleich implementieren
+#include "arch/x86/cpu/gdt.h" 
+#include "arch/x86/cpu/idt.h"  // gleich implementieren
 
 // --- printf, basiert auf vga_putc ---
 
@@ -106,6 +107,9 @@ void kmain(void) {
 
     gdt_init();
     printf("GDT initialized.\n");
+
+    idt_init();
+    printf("IDT initialized.\n");
 
     printf("printf test: %s | %d | %x\n",
            "hello", 1234, 0xBEEF);
