@@ -5,7 +5,8 @@
 
 #include "drivers/vga.h"
 #include "arch/x86/cpu/gdt.h" 
-#include "arch/x86/cpu/idt.h"  // gleich implementieren
+#include "arch/x86/cpu/idt.h"
+#include "arch/x86/cpu/interrupts.h"
 
 // --- printf, basiert auf vga_putc ---
 
@@ -109,10 +110,14 @@ void kmain(void) {
     printf("GDT initialized.\n");
 
     idt_init();
-    printf("IDT initialized.\n");
+    printf("IDT base loaded.\n");
 
-    printf("printf test: %s | %d | %x\n",
-           "hello", 1234, 0xBEEF);
+    interrupts_init();
+    printf("Test interrupt 0x30 installed.\n");
+
+    printf("Before int 0x30\n");
+    __asm__ __volatile__("int $0x30");
+    printf("After int 0x30\n");
 
     for (;;) {
         __asm__ __volatile__("hlt");
