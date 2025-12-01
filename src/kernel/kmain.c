@@ -4,9 +4,15 @@
 #include <stdint.h>
 
 #include "drivers/vga.h"
+#include "drivers/pit.h"
+
 #include "arch/x86/cpu/gdt.h" 
 #include "arch/x86/cpu/idt.h"
 #include "arch/x86/cpu/interrupts.h"
+#include "arch/x86/cpu/isr.h"
+#include "arch/x86/cpu/irq.h"
+
+
 
 // --- printf, basiert auf vga_putc ---
 
@@ -112,12 +118,16 @@ void kmain(void) {
     idt_init();
     printf("IDT base loaded.\n");
 
-    interrupts_init();
-    printf("Test interrupt 0x30 installed.\n");
+    isr_install();
+    printf("ISRs (exceptions 0-31) installed.\n");
 
-    printf("Before int 0x30\n");
-    __asm__ __volatile__("int $0x30");
-    printf("After int 0x30\n");
+    irq_install();
+    printf("IRQ Installed and Mapped.\n");
+
+    pit_init(100);
+    printf("PIT Initialized.\n");
+
+    printf("=========================================\nKernel Init Done.\n=========================================\n");
 
     for (;;) {
         __asm__ __volatile__("hlt");
