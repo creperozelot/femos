@@ -3,14 +3,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "drivers/vga.h"
-#include "drivers/pit.h"
+#include "drivers/vga/vga.h"
+#include "drivers/pit/pit.h"
 
-#include "arch/x86/cpu/gdt.h" 
-#include "arch/x86/cpu/idt.h"
+#include "arch/x86/cpu/gdt/gdt.h" 
+#include "arch/x86/cpu/idt/idt.h"
 #include "arch/x86/cpu/interrupts.h"
-#include "arch/x86/cpu/isr.h"
-#include "arch/x86/cpu/irq.h"
+#include "arch/x86/cpu/isr/isr.h"
+#include "arch/x86/cpu/irq/irq.h"
 
 
 
@@ -126,6 +126,10 @@ void kmain(void) {
 
     pit_init(100);
     printf("PIT Initialized.\n");
+
+    printf("Calling sti() now...\n");
+    __asm__ __volatile__("sti");
+    printf("sti() executed.\n");
 
     printf("=========================================\nKernel Init Done.\n=========================================\n");
 
