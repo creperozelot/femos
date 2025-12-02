@@ -5,6 +5,7 @@
 
 #include "drivers/vga/vga.h"
 #include "drivers/pit/pit.h"
+#include "drivers/keyboard/keyboard.h"
 
 #include "arch/x86/cpu/gdt/gdt.h" 
 #include "arch/x86/cpu/idt/idt.h"
@@ -126,6 +127,9 @@ void kmain(void) {
 
     pit_init(100);
     printf("PIT Initialized.\n");
+
+    keyboard_init();
+    printf("Keyboard initialized.");
 
     printf("Calling sti() now...\n");
     __asm__ __volatile__("sti");

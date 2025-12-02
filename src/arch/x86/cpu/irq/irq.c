@@ -31,31 +31,31 @@ void irq_uninstall_handler(int irq) {
         irq_routines[irq] = 0;
 }
 
-static void pic_remap_only_irq0(void) {
-    // Alte Masken lesen
+static void pic_remap_basic(void) {
     uint8_t a1 = inb(MASTER_PIC_DATA);
     uint8_t a2 = inb(SLAVE_PIC_DATA);
     (void)a1;
     (void)a2;
 
-    // Init-Sequenz
+    // ICW1 -> command ports
     outb(MASTER_PIC_CMD, 0x11);
     outb(SLAVE_PIC_CMD,  0x11);
 
+    // ICW2 -> data ports (Offsets)
     outb(MASTER_PIC_DATA, 0x20); // Master -> 32–39
     outb(SLAVE_PIC_DATA,  0x28); // Slave  -> 40–47
 
+    // ICW3 -> data ports (Verkabelung)
     outb(MASTER_PIC_DATA, 0x04); // Slave an IRQ2
     outb(SLAVE_PIC_DATA,  0x02); // Cascade ID
 
+    // ICW4 -> data ports (8086-Mode)
     outb(MASTER_PIC_DATA, 0x01);
     outb(SLAVE_PIC_DATA,  0x01);
 
-    // Maske: NUR IRQ0 erlauben
-    // Bit 0 = IRQ0, 1 = IRQ1, ...
-    // 0 = unmasked, 1 = masked
-    outb(MASTER_PIC_DATA, 0xFE); // 1111 1110 -> nur IRQ0 frei
-    outb(SLAVE_PIC_DATA,  0xFF); // alle IRQ8-15 aus
+    // Maske: nur IRQ0 + IRQ1 frei
+    outb(MASTER_PIC_DATA, 0xFC); // 1111 1100
+    outb(SLAVE_PIC_DATA,  0xFF); // alle IRQ8–15 maskiert
 }
 
 extern void irq0();
@@ -79,7 +79,7 @@ void irq_install(void)
 {
     uint16_t cs = 0x08;
 
-    pic_remap_only_irq0();
+    pic_remap_basic();
 
     idt_set_gate(32, (uint32_t)irq0,  cs, 0x8E);
     idt_set_gate(33, (uint32_t)irq1,  cs, 0x8E);
@@ -102,24 +102,12 @@ void irq_install(void)
 
 void irq_handler(regs_t* r)
 {
-    extern int printf(const char*, ...);
-    static uint32_t ticks = 0;
-
     int irq = (int)r->int_no - 32;
-    
-    if (irq == 0) {
-        ticks++;
-        if (ticks % 100 == 0) {
-            printf("[PIT] tick=%d\n", (int)ticks);
-        }
-    }
 
-    // Optionale weitere Handler
     if (irq >= 0 && irq < 16 && irq_routines[irq]) {
         irq_routines[irq](r);
     }
 
-    // EOI an PIC
     if (irq >= 8) {
         outb(SLAVE_PIC_CMD,  PIC_EOI);
     }

@@ -74,5 +74,4 @@ irq_common_stub:
 
     add esp, 8             ; int_no + err_code
 
-    sti
     iretd
