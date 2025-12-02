@@ -135,6 +135,10 @@ void kmain(void) {
     __asm__ __volatile__("sti");
     printf("sti() executed.\n");
 
+    printf("Sleeping 3 seconds via pit_sleep_ms...\n");
+    pit_sleep_ms(3000);
+    printf("Woke up. Uptime: %u s\n", pit_uptime_seconds());
+
     printf("=========================================\nKernel Init Done.\n=========================================\n");
 
     for (;;) {
