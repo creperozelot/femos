@@ -2,6 +2,7 @@
 #include "drivers/pit/pit.h"
 #include "arch/x86/cpu/irq/irq.h"
 #include "arch/x86/cpu/isr/isr.h"
+#include "kernel/scheduler/scheduler.h"
 
 static volatile uint32_t pit_ticks = 0;
 static uint32_t pit_frequency = 0;
@@ -67,16 +68,14 @@ void pit_sleep_ms(uint32_t ms)
     if (pit_frequency == 0) return;
 
     uint32_t start = pit_get_ticks();
+    uint32_t delta = (ms * pit_frequency) / 1000;
 
-    // delta_ticks = ms * freq / 1000, nur 32-bit Mathe
-    uint32_t delta_ticks = (ms * pit_frequency) / 1000U;
-    if (delta_ticks == 0) {
-        delta_ticks = 1; // mindestens ein Tick
-    }
+    if (delta == 0)
+        delta = 1;
 
-    uint32_t target = start + delta_ticks;
+    uint32_t target = start + delta;
 
     while ((int32_t)(pit_get_ticks() - target) < 0) {
-        __asm__ __volatile__("hlt");
+        scheduler_yield();
     }
 }

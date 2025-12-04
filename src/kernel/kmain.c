@@ -13,6 +13,8 @@
 #include "arch/x86/cpu/isr/isr.h"
 #include "arch/x86/cpu/irq/irq.h"
 
+#include "kernel/scheduler/scheduler.h"
+
 
 
 // --- printf, basiert auf vga_putc ---
@@ -109,6 +111,25 @@ int printf(const char* fmt, ...) {
     return 0;
 }
 
+//DEMO TASK
+static void task1(void)
+{
+    int i = 0;
+    for (;;) {
+        printf("[T1] i=%d\n", i++);
+        pit_sleep_ms(500);
+    }
+}
+
+static void task2(void)
+{
+    int j = 0;
+    for (;;) {
+        printf("[T2] j=%d\n", j++);
+        pit_sleep_ms(1000);
+    }
+}
+
 void kmain(void) {
     vga_init();
     printf("kmain started.\n");
@@ -131,13 +152,17 @@ void kmain(void) {
     keyboard_init();
     printf("Keyboard initialized.");
 
+    scheduler_init();
+    scheduler_create(task1);
+    scheduler_create(task2);
+    printf("Tasks created. Enabling interuppts...\n");
+
     printf("Calling sti() now...\n");
     __asm__ __volatile__("sti");
     printf("sti() executed.\n");
 
-    printf("Sleeping 3 seconds via pit_sleep_ms...\n");
-    pit_sleep_ms(3000);
-    printf("Woke up. Uptime: %u s\n", pit_uptime_seconds());
+    printf("Starting Scheudler...");
+    scheduler_start();
 
     printf("=========================================\nKernel Init Done.\n=========================================\n");
 
