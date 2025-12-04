@@ -142,7 +142,7 @@ insmod gfxmenu
 
 terminal_output gfxterm
 
-background_image /boot/grub/background.png
+background_image /boot/grub/backgrou.png
 
 menuentry "FEMOS (auto-build)" {
     multiboot /boot/kernel.elf
