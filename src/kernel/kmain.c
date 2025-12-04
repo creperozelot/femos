@@ -14,8 +14,11 @@
 #include "arch/x86/cpu/irq/irq.h"
 
 #include "kernel/scheduler/scheduler.h"
+#include "kernel/memory/kheap.h"
 
+#define KHEAP_SIZE (1024 * 1024)
 
+static uint8_t kernel_heap_area[KHEAP_SIZE];
 
 // --- printf, basiert auf vga_putc ---
 
@@ -112,12 +115,25 @@ int printf(const char* fmt, ...) {
 }
 
 //DEMO TASK
+
 static void task1(void)
 {
+    printf("[T1] start\n");
+
+    char* buf = (char*)kmalloc(32);
+    if (buf) {
+        for (int i = 0; i < 31; i++) buf[i] = 'A' + (i % 26);
+        buf[31] = '\0';
+        printf("[T1] kmalloc buf=%s\n", buf);
+    } else {
+        printf("[T1] kmalloc failed\n");
+    }
+
     int i = 0;
     for (;;) {
         printf("[T1] i=%d\n", i++);
         pit_sleep_ms(500);
+        // kein explizites yield, Sleep erledigt das
     }
 }
 
@@ -133,6 +149,9 @@ static void task2(void)
 void kmain(void) {
     vga_init();
     printf("kmain started.\n");
+
+    kheap_init(kernel_heap_area, KHEAP_SIZE);
+    printf("Kernel heap initialized (%d bytes)... [OK]\n", (unsigned)KHEAP_SIZE);
 
     gdt_init();
     printf("GDT initialized.\n");
