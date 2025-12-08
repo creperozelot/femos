@@ -20,7 +20,8 @@
 #include "kernel/memory/pmm.h"
 
 #define KHEAP_SIZE (1024 * 1024)
-static uint8_t kernel_heap_area[KHEAP_SIZE];
+
+extern uint8_t kernel_end;
 
 static void kputc(char c) {
     vga_putc(c);
@@ -118,22 +119,10 @@ int printf(const char* fmt, ...) {
 
 static void task1(void)
 {
-    printf("[T1] start\n");
-
-    char* buf = (char*)kmalloc(32);
-    if (buf) {
-        for (int i = 0; i < 31; i++) buf[i] = 'A' + (i % 26);
-        buf[31] = '\0';
-        printf("[T1] kmalloc buf=%s\n", buf);
-    } else {
-        printf("[T1] kmalloc failed\n");
-    }
-
     int i = 0;
     for (;;) {
         printf("[T1] i=%d\n", i++);
-        pit_sleep_ms(500);
-        // kein explizites yield, Sleep erledigt das
+        pit_sleep_ms(500);  // 0.5s
     }
 }
 
@@ -141,55 +130,41 @@ static void task2(void)
 {
     int j = 0;
     for (;;) {
-        printf("[T2] j=%d\n", j++);
-        pit_sleep_ms(1000);
+        printf("    [T2] j=%d\n", j++);
+        pit_sleep_ms(1000); // 1s
     }
 }
 
+
 void kmain(void) {
     vga_init();
-    printf("kmain started.\n");
+    printf("kmain start\n");
 
-    kheap_init(kernel_heap_area, KHEAP_SIZE);
-    printf("Kernel heap initialized (%d bytes)... [OK]\n", (unsigned)KHEAP_SIZE);
+    uintptr_t kernel_end_phys = (uintptr_t)&kernel_end;
 
-    pmm_init(32 * 1024 * 1024);
-    printf("PMM initialized (32 MiB)\n");
-
-    gdt_init();
-    printf("GDT initialized.\n");
-
-    idt_init();
-    printf("IDT base loaded.\n");
-
-    isr_install();
-    printf("ISRs (exceptions 0-31) installed.\n");
-
-    irq_install();
-    printf("IRQ Installed and Mapped.\n");
+    pmm_init(4 * 1024 * 1024, kernel_end_phys);
+    printf("PMM initialized up to kernel_end=0x%x\n", (unsigned)kernel_end_phys);
 
     paging_init();
-    printf("Paging enabled (identity 0-4 MiB)\n");
+    printf("Paging enabled (identity 0–4MiB)\n");
+
+    kheap_init();
+    printf("Kernel heap initialized on PMM pages\n");
+
+    gdt_init();
+    idt_init();
+    isr_install();
+    irq_install();
 
     pit_init(100);
-    printf("PIT Initialized.\n");
-
     keyboard_init();
-    printf("Keyboard initialized.");
 
     scheduler_init();
     scheduler_create(task1);
     scheduler_create(task2);
-    printf("Tasks created. Enabling interuppts...\n");
 
-    printf("Calling sti() now...\n");
     __asm__ __volatile__("sti");
-    printf("sti() executed.\n");
-
-    printf("Starting Scheudler...");
     scheduler_start();
-
-    printf("=========================================\nKernel Init Done.\n=========================================\n");
 
     for (;;) {
         __asm__ __volatile__("hlt");

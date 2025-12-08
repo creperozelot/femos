@@ -15,7 +15,13 @@ static void pit_callback(regs_t* r)
 {
     (void)r;
     pit_ticks++;
+
+    // alle 10 Ticks (~100ms bei 100Hz) Zeitscheibe
+    if (pit_ticks % 10 == 0) {
+        scheduler_tick();
+    }
 }
+
 
 void pit_init(uint32_t freq)
 {
@@ -67,15 +73,13 @@ void pit_sleep_ms(uint32_t ms)
 {
     if (pit_frequency == 0) return;
 
-    uint32_t start = pit_get_ticks();
-    uint32_t delta = (ms * pit_frequency) / 1000;
-
-    if (delta == 0)
-        delta = 1;
-
+    uint32_t start  = pit_get_ticks();
+    uint32_t delta  = (ms * pit_frequency) / 1000U;
+    if (delta == 0) delta = 1;
     uint32_t target = start + delta;
 
     while ((int32_t)(pit_get_ticks() - target) < 0) {
+        // Scheduler bekommt die Chance zu wechseln, falls der Timer das verlangt
         scheduler_yield();
     }
 }

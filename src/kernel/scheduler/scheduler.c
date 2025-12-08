@@ -17,12 +17,24 @@ static uint8_t task_stacks[MAX_TASKS][STACK_SIZE];
 static int      task_count   = 0;
 static task_t*  current_task = 0;
 
+// wird von context_switch.asm bereitgestellt
 extern void context_switch(uint32_t** old_sp, uint32_t* new_sp);
+
+// Timer-Signal: „Es wäre Zeit für einen Taskwechsel“
+static volatile int need_resched = 0;
+
+void scheduler_tick(void)
+{
+    // Wird im PIT-IRQ-Kontext aufgerufen.
+    // Hier NICHT context_switch aufrufen, sondern nur ein Flag setzen.
+    need_resched = 1;
+}
 
 void scheduler_init(void)
 {
     task_count   = 0;
     current_task = 0;
+    need_resched = 0;
 }
 
 int scheduler_create(void (*entry)(void))
@@ -34,10 +46,20 @@ int scheduler_create(void (*entry)(void))
     int     id = task_count;
     task_t* t  = &tasks[id];
 
+    // eigener Stack für Task: oben beginnen
     uint32_t* sp = (uint32_t*)(task_stacks[id] + STACK_SIZE);
 
-    // Stack für neuen Task:
-    // context_switch -> pop edi, esi, ebx, ebp, ret
+    // Stack-Layout passend zu context_switch:
+    // context_switch:
+    //   push ebp, ebx, esi, edi
+    //   *old_sp = esp
+    //   esp = new_sp
+    //   pop edi, esi, ebx, ebp
+    //   ret  -> springt zu entry
+    //
+    // Stack (oben -> unten):
+    //   [edi][esi][ebx][ebp][ret_eip]
+
     *--sp = (uint32_t)entry; // ret -> entry
     *--sp = 0;               // ebp
     *--sp = 0;               // ebx
@@ -48,7 +70,7 @@ int scheduler_create(void (*entry)(void))
     t->id = id;
 
     if (task_count == 0) {
-        t->next = t;         // erster Task -> Ring auf sich selbst
+        t->next = t; // erster Task zeigt auf sich selbst
     } else {
         t->next = tasks[0].next;
         tasks[0].next = t;
@@ -60,28 +82,37 @@ int scheduler_create(void (*entry)(void))
 
 void scheduler_yield(void)
 {
-    if (task_count < 2 || !current_task) {
+    // kein Wechsel nötig oder nur ein Task
+    if (!need_resched || task_count < 2 || !current_task) {
         return;
     }
 
-    __asm__ __volatile__("cli");  // während des Wechsels Sperren
+    need_resched = 0;
+
     task_t* prev = current_task;
     task_t* next = current_task->next;
     current_task = next;
 
+    // WICHTIG: KEIN cli/sti hier!
+    // Beim ersten Wechsel kehrt context_switch NICHT in scheduler_yield zurück,
+    // sondern direkt in entry() des neuen Tasks.
+    // Ein sti nach context_switch würde daher nie ausgeführt werden.
     context_switch(&prev->sp, next->sp);
-
-    __asm__ __volatile__("sti");  // WICHTIG: nach dem Switch wieder an!
 }
 
 void scheduler_start(void)
 {
-    if (task_count == 0) return;
+    if (task_count == 0) {
+        return;
+    }
 
     current_task = &tasks[0];
 
     uint32_t* dummy = 0;
     context_switch(&dummy, current_task->sp);
 
-    for (;;) __asm__ __volatile__("hlt");
+    // sollte nie erreicht werden
+    for (;;) {
+        __asm__ __volatile__("hlt");
+    }
 }
