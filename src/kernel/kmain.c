@@ -7,6 +7,8 @@
 #include "drivers/pit/pit.h"
 #include "drivers/keyboard/keyboard.h"
 
+#include "arch/x86/mm/paging.h"
+
 #include "arch/x86/cpu/gdt/gdt.h" 
 #include "arch/x86/cpu/idt/idt.h"
 #include "arch/x86/cpu/interrupts.h"
@@ -15,12 +17,10 @@
 
 #include "kernel/scheduler/scheduler.h"
 #include "kernel/memory/kheap.h"
+#include "kernel/memory/pmm.h"
 
 #define KHEAP_SIZE (1024 * 1024)
-
 static uint8_t kernel_heap_area[KHEAP_SIZE];
-
-// --- printf, basiert auf vga_putc ---
 
 static void kputc(char c) {
     vga_putc(c);
@@ -153,6 +153,9 @@ void kmain(void) {
     kheap_init(kernel_heap_area, KHEAP_SIZE);
     printf("Kernel heap initialized (%d bytes)... [OK]\n", (unsigned)KHEAP_SIZE);
 
+    pmm_init(32 * 1024 * 1024);
+    printf("PMM initialized (32 MiB)\n");
+
     gdt_init();
     printf("GDT initialized.\n");
 
@@ -164,6 +167,9 @@ void kmain(void) {
 
     irq_install();
     printf("IRQ Installed and Mapped.\n");
+
+    paging_init();
+    printf("Paging enabled (identity 0-4 MiB)\n");
 
     pit_init(100);
     printf("PIT Initialized.\n");
